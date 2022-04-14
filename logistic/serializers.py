@@ -1,5 +1,6 @@
+import rest_framework.pagination
 from rest_framework import serializers
-from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 
 from logistic.models import Product, Stock, StockProduct
 
@@ -14,6 +15,7 @@ class ProductPositionSerializer(serializers.ModelSerializer):
     class Meta:
         model = StockProduct
         fields = ['product', 'quantity', 'price']
+        pagination_class =  PageNumberPagination
 
 
 class StockSerializer(serializers.ModelSerializer):
@@ -35,10 +37,15 @@ class StockSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         positions = validated_data.pop('positions')
         stock = super().update(instance, validated_data)
-        print(instance,positions)
         for position in positions:
-                StockProduct.objects.filter(stock_id=instance.id,
-                            product_id=position['product'].id).update(quantity=position['quantity'],
-                             price=position['price'])
+                if len(StockProduct.objects.filter(stock_id=instance.id,
+                            product_id=position['product'].id)) == 1:
+                    StockProduct.objects.filter(stock_id=instance.id,
+                                product_id=position['product'].id).update(quantity=position['quantity'],
+                                 price=position['price'])
+                else:
+                    StockProduct(quantity=position['quantity'],
+                                 product_id=position['product'].id,
+                                 price=position['price'], stock_id=stock.id).save()
         return stock
 
